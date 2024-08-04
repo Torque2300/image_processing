@@ -1,0 +1,111 @@
+import numpy as np
+import cv2 as cv
+from matplotlib import pyplot as plt
+
+
+number_list = []
+number_list.append(cv.imread("0.png", 0))
+number_list.append(cv.imread("1.png", 0))
+number_list.append(cv.imread("2.png", 0))
+number_list.append(cv.imread("3.png", 0))
+number_list.append(cv.imread("4.png", 0))
+number_list.append(cv.imread("5.png", 0))
+number_list.append(cv.imread("6.png", 0))
+number_list.append(cv.imread("7.png", 0))
+number_list.append(cv.imread("8.png", 0))
+number_list.append(cv.imread("9.png", 0))
+
+fig, ax = plt.subplots(3, 4, figsize=(5, 5))
+fig.suptitle('Numbers', fontsize=16)
+for i, axi in enumerate(ax.flat):
+    if (i < 10):
+        axi.imshow(number_list[i], cmap='gray')
+        axi.set(xticks=[], yticks=[])
+fig.delaxes(ax[2,2])
+fig.delaxes(ax[2,3])
+plt.show()
+
+image = cv.imread('dota2.jpg')
+assert image is not None, "file could not be read, check with os.path.exists()"
+image_rgb = cv.cvtColor(image, cv.COLOR_BGR2RGB)
+gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+
+template = cv.imread('win.jpeg', cv.IMREAD_GRAYSCALE)
+assert template is not None, "file could not be read, check with os.path.exists()"
+
+colon_template = cv.imread('dev.jpeg', 0)
+
+method = eval('cv.TM_CCORR_NORMED')
+
+plt.figure(figsize=(12,12))
+plt.imshow(image_rgb), plt.xticks([]), plt.yticks([])
+plt.show()
+
+
+import cv2 as cv
+import numpy as np
+import random
+from functools import cmp_to_key
+time_region_width = 40
+
+class Number_container:
+    def __init__(self, number, box, isColon = False):
+        self.number = number
+        self.box = box
+        self.isColon = isColon
+
+def find_region(method, img, template):
+    w = template.shape[::-1][0]
+    h = template.shape[::-1][1]
+    res = cv.matchTemplate(img, template, method)
+    _, _, _, max_loc = cv.minMaxLoc(res)
+    return max_loc, (max_loc[0] + w, max_loc[1] + h), res
+
+def find_boxes(method, img, template, threshold = 0.9):
+    w = template.shape[::-1][0]
+    h = template.shape[::-1][1]
+    res = cv.matchTemplate(img, template, method)
+    detected_boxes = []
+    loc = np.where(res >= threshold)
+    for pt in zip(*loc[::-1]):
+        detected_boxes.append((pt, (pt[0] + w, pt[1] + h)))
+    return detected_boxes
+
+def box_center(box):
+    return (box[0][0] + box[1][0]) * 0.5
+
+def box_compare(item1, item2):
+    if box_center(item1.box) < box_center(item2.box):
+        return -1
+    elif box_center(item1.box) > box_center(item2.box):
+        return 1
+    else:
+        return 0
+
+
+image = cv.imread('dota2.jpg')
+img = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+template = cv.imread('win.jpeg', 0)
+colon_template = cv.imread('dev.jpeg', 0)
+method = eval('cv.TM_CCOEFF_NORMED')
+
+top_left, bottom_right, _ = find_region(method, img, template)
+time_region = img[top_left[1] : bottom_right[1], bottom_right[0] : bottom_right[0] + time_region_width]
+
+founded_number = []
+for idx, number in enumerate(number_list):
+    boxes = find_boxes(method, time_region, number)
+    for box in boxes:
+        founded_number.append(Number_container(idx, box))
+boxes = find_boxes(method, time_region, colon_template)
+for box in boxes:
+    founded_number.append(Number_container(-1, box, True))
+founded_number = sorted(founded_number, key=cmp_to_key(box_compare))
+time = ''
+for number in founded_number:
+    if (number.isColon):
+        time += ':'
+    else:
+        time += str(number.number)
+
+print(time)
